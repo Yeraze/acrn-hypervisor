@@ -49,6 +49,14 @@ done
 ln -sf "${SYS_LIB}/libwebkit2gtk-4.1.so"        "${SHIM_LIB}/libwebkit2gtk-4.0.so"
 ln -sf "${SYS_LIB}/libjavascriptcoregtk-4.1.so" "${SHIM_LIB}/libjavascriptcoregtk-4.0.so"
 
+# webkit2gtk-4.1 pulls in libsoup-3.0, but Tauri 1's soup2-sys crate links
+# libsoup-2.4. Loading both libsoup2 and libsoup3 in one process aborts at
+# runtime. The binary only references soup_message_headers_append /
+# soup_message_headers_get_type, which both exist in libsoup-3.0, so point
+# `-lsoup-2.4` at libsoup-3.0: the produced binary then needs ONLY libsoup-3.0.
+# (Searched before the default lib path, so it overrides the real libsoup-2.4.so.)
+ln -sf "${SYS_LIB}/libsoup-3.0.so" "${SHIM_LIB}/libsoup-2.4.so"
+
 export PKG_CONFIG_PATH="${SHIM_PC}:${PKG_CONFIG_PATH:-}"
 export RUSTFLAGS="-L ${SHIM_LIB} ${RUSTFLAGS:-}"
 
