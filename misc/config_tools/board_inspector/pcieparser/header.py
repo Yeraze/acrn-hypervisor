@@ -25,10 +25,14 @@ class Common(cdata.Struct):
 
 class MemoryBar32(cdata.Struct):
     _pack_ = 1
+    # All bitfields must share the same storage type (c_uint32). Python 3.14
+    # changed ctypes bitfield packing so mixed-type bitfields no longer share a
+    # storage unit, which would make this struct 5 bytes instead of 4 and
+    # misalign every following field in the PCI header.
     _fields_ = [
-        ('indicator', ctypes.c_uint8, 1),
-        ('type', ctypes.c_uint8, 2),
-        ('prefetchable', ctypes.c_uint8, 1),
+        ('indicator', ctypes.c_uint32, 1),
+        ('type', ctypes.c_uint32, 2),
+        ('prefetchable', ctypes.c_uint32, 1),
         ('base_z', ctypes.c_uint32, 28),
     ]
 
@@ -40,10 +44,11 @@ class MemoryBar32(cdata.Struct):
 
 class MemoryBar64(cdata.Struct):
     _pack_ = 1
+    # All bitfields must share the same storage type (c_uint64); see MemoryBar32.
     _fields_ = [
-        ('indicator', ctypes.c_uint8, 1),
-        ('type', ctypes.c_uint8, 2),
-        ('prefetchable', ctypes.c_uint8, 1),
+        ('indicator', ctypes.c_uint64, 1),
+        ('type', ctypes.c_uint64, 2),
+        ('prefetchable', ctypes.c_uint64, 1),
         ('base_z', ctypes.c_uint64, 60),
     ]
 
@@ -55,9 +60,10 @@ class MemoryBar64(cdata.Struct):
 
 class IOBar(cdata.Struct):
     _pack_ = 1
+    # All bitfields must share the same storage type (c_uint32); see MemoryBar32.
     _fields_ = [
-        ('indicator', ctypes.c_uint8, 1),
-        ('reserved', ctypes.c_uint8, 1),
+        ('indicator', ctypes.c_uint32, 1),
+        ('reserved', ctypes.c_uint32, 1),
         ('base_z', ctypes.c_uint32, 30),
     ]
 
