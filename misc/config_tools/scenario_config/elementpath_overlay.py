@@ -114,8 +114,13 @@ def select_duplicate_values_function(self, context=None):
 def evaluate_number_of_clos_id_needed(self, context=None):
     op = self.get_argument(context, index=0)
     if op is not None:
-        if isinstance(op, elementpath.TypedElement):
+        # elementpath >= 3.0 wraps element arguments in XPathNode objects and
+        # dropped the old TypedElement namedtuple; unwrap either form to the
+        # underlying element node.
+        if hasattr(elementpath, "TypedElement") and isinstance(op, elementpath.TypedElement):
             op = op.elem
+        elif isinstance(op, elementpath.XPathNode):
+            op = getattr(op, "elem", getattr(op, "value", op))
 
         # This function may be invoked when the xmlschema library parses the data check schemas, in which case `op` will
         # be an object of class Xsd11Element. Only attempt to calculate the needed CLOS IDs when a real acrn-config node
