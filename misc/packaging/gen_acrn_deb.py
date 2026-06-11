@@ -205,6 +205,56 @@ def create_acrn_board_inspector_deb(version, build_dir):
     return
 
 
+def adjust_configurator_deb_depends(deb_path):
+    """Fix up the runtime dependencies recorded in the configurator .deb.
+
+    The Tauri 1.x bundler hardcodes a 'libwebkit2gtk-4.0-37' dependency in the
+    generated control file. Ubuntu 24.04+/26.04 dropped that package in favour
+    of 'libwebkit2gtk-4.1-0', and the binary is linked against webkit2gtk-4.1
+    there, so the .deb would refuse to install. Rewrite Depends to the webkit
+    runtime package that is actually installed on the build host. Builds on
+    Ubuntu 22.04 (where 4.0-37 is present) are left untouched.
+    """
+    deb_path = str(deb_path)
+
+    def pkg_installed(name):
+        return subprocess.call(['dpkg-query', '-W', name],
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL) == 0
+
+    # old hardcoded package -> replacement on newer Ubuntu
+    replacements = {'libwebkit2gtk-4.0-37': 'libwebkit2gtk-4.1-0'}
+    active = {old: new for old, new in replacements.items()
+              if not pkg_installed(old) and pkg_installed(new)}
+    if not active:
+        return
+
+    depends = subprocess.check_output(
+        ['dpkg-deb', '-f', deb_path, 'Depends']).decode().strip()
+    new_depends = depends
+    for old, new in active.items():
+        new_depends = re.sub(r'\b' + re.escape(old) + r'\b', new, new_depends)
+    if new_depends == depends:
+        return
+
+    work_dir = deb_path + '.fix'
+    state = deb_path + '.frstate'
+    if os.path.isdir(work_dir):
+        shutil.rmtree(work_dir)
+    # extract/rebuild under one fakeroot state so root:root ownership survives
+    subprocess.check_call(['fakeroot', '-s', state, 'dpkg-deb', '-R', deb_path, work_dir])
+    control_file = os.path.join(work_dir, 'DEBIAN', 'control')
+    with open(control_file) as f:
+        control = f.read()
+    control = control.replace('Depends: ' + depends, 'Depends: ' + new_depends)
+    with open(control_file, 'w') as f:
+        f.write(control)
+    subprocess.check_call(['fakeroot', '-i', state, 'dpkg-deb', '-b', work_dir, deb_path])
+    shutil.rmtree(work_dir)
+    os.remove(state)
+    print('Adjusted configurator deb Depends: "%s" -> "%s"' % (depends, new_depends))
+
+
 def create_configurator_deb(version, build_dir):
     cmd_list = []
 
@@ -236,9 +286,11 @@ def create_configurator_deb(version, build_dir):
         return
     orig_deb_name = orig_deb_name[0]
     dist_deb_name = 'acrn-configurator-{ver}.deb'.format(ver=version)
+    dist_deb_path = os.path.join(build_dir, dist_deb_name)
     with open(deb_dir / orig_deb_name, 'rb') as src:
-        with open(os.path.join(build_dir, dist_deb_name), 'wb') as dest:
+        with open(dist_deb_path, 'wb') as dest:
             dest.write(src.read())
+    adjust_configurator_deb_depends(dist_deb_path)
     return
 
 def clean_configurator_deb(version, build_dir):
