@@ -15,7 +15,8 @@ function copyFolder(copiedPath, resultPath, direct) {
     }
 
     function createDir(dirPath) {
-        fs.mkdirSync(dirPath)
+        // recursive: do not throw EEXIST when a previous build left the dir behind
+        fs.mkdirSync(dirPath, {recursive: true})
     }
 
     if (fs.existsSync(copiedPath)) {

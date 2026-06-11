@@ -21,7 +21,7 @@ Build-Depends:
    libnuma-dev,
    libsdl2-dev,
    libpixman-1-dev,
-   liblz4-tool,
+   lz4,
    linux-libc-dev (>= 4.20),
    libdrm-dev,
    libcjson-dev,
